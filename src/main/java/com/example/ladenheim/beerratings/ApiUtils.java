@@ -1,6 +1,7 @@
 package com.example.ladenheim.beerratings;
 
 import android.support.annotation.NonNull;
+import android.text.Html;
 import android.util.Log;
 
 import java.io.BufferedReader;
@@ -29,7 +30,73 @@ public class ApiUtils {
     private static String LOG_TAG = ApiUtils.class.getSimpleName();
     private static String baseUrl = "https://www.beermenus.com";
 
-    public static List<String> FindPlace(String searchVal) throws IOException  {
+    private static String baBaseUrl = "https://www.beeradvocate.com";
+
+    private static String getFirstMatch(String html, String pattern) {
+        Pattern p = Pattern.compile(pattern);
+        Matcher m = p.matcher(html);
+
+        String result = "";
+        while(m.find()) {
+            result =  m.group(1);
+            break;
+        }
+        return result;
+    }
+
+    private static String scrapePlaceUrl(String html) {
+
+        Pattern p = Pattern.compile("<a data-screen-title=(.*?)>");
+        Matcher m = p.matcher(html);
+        String placeHtml = "";
+        while(m.find()) {
+            placeHtml = m.group();
+            break;
+        }
+
+        // No place matches, probably throw an error here.
+        if(placeHtml == null) {
+            return null;
+        }
+
+        int start = placeHtml.indexOf("href=\"") + 7;
+        int end = placeHtml.indexOf("\">");
+        return placeHtml.substring(start, end);
+    }
+
+    private static List<Beer> getBeerFromBeermenus(String html) {;
+        Pattern p = Pattern.compile("<h3 class=\"mb-0\">(.*?)</h3>");
+        Matcher m = p.matcher(html);
+        List<Beer> beers = new ArrayList<Beer>();
+
+        while(m.find()) {
+            Beer b = new Beer();
+            b.name = Html.fromHtml(m.group(1).trim()).toString();
+            beers.add(b);
+        }
+        return beers;
+    }
+
+    private static void getBeerAdvocateRatings(List<Beer> beers) throws IOException {
+
+        for(Beer b: beers) {
+            String request = baBaseUrl + "/search/?qt=beer&q=" + URLEncoder.encode(b.name, "UTF-8");
+
+            String responseHtml = getRequest(request);
+            String beerUrl = getFirstMatch(responseHtml, "<a href=\"(/beer/profile/.*?)\">");
+
+            String beerResponseHtml = getRequest(baBaseUrl + beerUrl);
+            String s = getFirstMatch(
+                    beerResponseHtml, "<span class=\"BAscore_big ba-score\">(.*?)</span>");
+            if(s.equals("-") || s.equals("")) {
+                s = "0";
+            }
+            b.ratingBeerAdvocate = Double.parseDouble(s);
+        }
+
+    }
+
+    public static List<Beer> getBeers(String searchVal) throws IOException  {
         searchVal = "fools gold";
         String request = baseUrl + "/search?q=" + URLEncoder.encode(searchVal, "UTF-8");
         String response = "";
@@ -41,29 +108,12 @@ public class ApiUtils {
                     " and read_timeout=" + READ_TIMEOUT_MS);
         }
 
-        Pattern p = Pattern.compile("<a data-screen-title=(.*?)>");
-        Matcher m = p.matcher(response);
-        String place_html = "";
-        while(m.find()) {
-            place_html = m.group();
-            break;
-        }
-        String place_url = "";
-        if(!place_html.equals("")) {
-            int start = place_html.indexOf("href=\"") + 7;
-            int end = place_html.indexOf("\">");
-            place_url = place_html.substring(start, end);
-        }
+        String placeUrl = scrapePlaceUrl(response);
+        String placeResponse = getRequest(baseUrl + "/" + placeUrl);
+        List<Beer> beers = getBeerFromBeermenus(placeResponse);
 
-        String placeResponse = getRequest(baseUrl + "/" + place_url);
+        getBeerAdvocateRatings(beers);
 
-        p = Pattern.compile("<h3 class=\"mb-0\">(.*?)</h3>");
-        m = p.matcher(placeResponse);
-        List<String> beers = new ArrayList<String>();
-
-        while(m.find()) {
-            beers.add(m.group(1).trim());
-        }
         return beers;
     }
 

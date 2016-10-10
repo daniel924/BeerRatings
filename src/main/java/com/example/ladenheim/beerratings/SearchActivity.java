@@ -30,15 +30,15 @@ public class SearchActivity extends AppCompatActivity {
     // GpsFinder gpsFinder = null;
 
 
-    class SearchTask extends AsyncTask<String, Void, List<String>> {
+    class SearchTask extends AsyncTask<String, Void, List<Beer>> {
         ProgressDialog progress = null;
 
 
         @Override
-        protected List<String> doInBackground(String... params) {
-            List<String> response = new ArrayList<String>();
+        protected List<Beer> doInBackground(String... params) {
+            List<Beer> response = new ArrayList<Beer>();
             try {
-                response = ApiUtils.FindPlace(params[0]);
+                response = ApiUtils.getBeers(params[0]);
             } catch (Exception ex) {
                 Log.d(LOG_TAG, ex.getMessage());
                 ex.printStackTrace();
