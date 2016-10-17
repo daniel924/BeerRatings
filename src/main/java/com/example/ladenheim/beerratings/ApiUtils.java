@@ -13,6 +13,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -92,12 +93,13 @@ public class ApiUtils {
                 s = "0";
             }
             b.ratingBeerAdvocate = Double.parseDouble(s);
+            Log.d(LOG_TAG, "Beer " + b.name + " has rating " + b.ratingBeerAdvocate);
         }
 
     }
 
     public static List<Beer> getBeers(String searchVal) throws IOException  {
-        searchVal = "fools gold";
+        // searchVal = "bruno pizza";
         String request = baseUrl + "/search?q=" + URLEncoder.encode(searchVal, "UTF-8");
         String response = "";
         try {
