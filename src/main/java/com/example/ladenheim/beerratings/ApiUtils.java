@@ -88,7 +88,7 @@ public class ApiUtils {
 
             String beerResponseHtml = getRequest(baBaseUrl + beerUrl);
             String s = getFirstMatch(
-                    beerResponseHtml, "<span class=\"BAscore_big ba-score\">(.*?)</span>");
+                    beerResponseHtml, "<span class=\"ba-ravg\">(.*?)</span>");
             if(s.equals("-") || s.equals("")) {
                 s = "0";
             }
