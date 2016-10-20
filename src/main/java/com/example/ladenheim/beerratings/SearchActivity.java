@@ -81,14 +81,12 @@ public class SearchActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_search);
 
-
         List<Beer> beers = Arrays.asList(
                 new Beer("bud light limarita", 5.1, 4.9), new Beer("molsens", 1.0, 1.3), new Beer("sminoff ice", 2.1, 4.4));
 
         adapter = new PlaceAdapter(this, beers);
         listView = (ListView) findViewById(R.id.list_view);
         listView.setAdapter(adapter);
-
 
         final SearchView searchView = (SearchView) findViewById(R.id.search_text);
 
