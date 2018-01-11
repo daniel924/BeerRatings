@@ -4,6 +4,10 @@ import android.os.AsyncTask;
 import android.text.Html;
 import android.util.Log;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,6 +39,8 @@ public class ApiUtils {
     private static String baseUrl = "https://www.beermenus.com";
 
     private static String baBaseUrl = "https://www.beeradvocate.com";
+
+    private static String beerRatingUrl = "https://beer-rating.appspot.com";
 
     public static String getFirstMatch(String html, String pattern) {
         Pattern p = Pattern.compile(pattern);
@@ -83,23 +89,38 @@ public class ApiUtils {
         return placeHtml.substring(start, end);
     }
 
-    private static List<Beer> getBeerFromBeermenus(String html) {;
-        Pattern p = Pattern.compile("<h3 class=\"mb-0\">(.*?)</h3>");
-        Matcher m = p.matcher(html);
+    private static List<Beer> getBeerFromBeermenus(String searchVal) throws IOException {
+
         List<Beer> beers = new ArrayList<Beer>();
 
-        while(m.find()) {
-            Beer b = new Beer();
-            b.name = Html.fromHtml(m.group(1).trim()).toString();
-            beers.add(b);
+        String request = beerRatingUrl + "/place/" + URLEncoder.encode(searchVal, "UTF-8");
+        String response = "";
+        try {
+            response = getRequest(request);
         }
+        catch(SocketTimeoutException ex) {
+            Log.d(LOG_TAG, "Response timed out with connection_timeout=%s" + CONNECTION_TIMEOUT_MS +
+                    " and read_timeout=" + READ_TIMEOUT_MS);
+            return beers;
+        }
+        try {
+            JSONArray beerNamesJson = new JSONArray(response);
+            for(int i=0; i < beerNamesJson.length(); i++) {
+                beers.add(new Beer(beerNamesJson.getString(i)));
+            }
+        }
+        catch (JSONException ex) {
+            Log.d(LOG_TAG, "JSON exception: " + ex.getMessage());
+            return beers;
+        }
+
         return beers;
     }
 
     private static void getBeerAdvocateRatings(List<Beer> beers) throws IOException {
         ExecutorService es = Executors.newFixedThreadPool(75);
         for(Beer b: beers) {
-            es.execute(new SetBeerRating(b, baBaseUrl));
+            es.execute(new SetBeerRating(b, beerRatingUrl));
         }
         long start = System.currentTimeMillis() / 1000l;
         // Shutdown thread pool from accepting new tasks and wait for current ones to finish.
@@ -121,8 +142,19 @@ public class ApiUtils {
         Log.d(LOG_TAG, "Time used for query: " + (System.currentTimeMillis() / 1000l - start));
     }
 
-    public static List<Beer> getBeers(String searchVal) throws IOException  {
-        String request = baseUrl + "/search?q=" + URLEncoder.encode(searchVal, "UTF-8");
+    public static List<Beer> getBeers2(String searchVal) throws IOException  {
+
+        List<Beer> beers = getBeerFromBeermenus(searchVal);
+
+        getBeerAdvocateRatings(beers);
+
+        return beers;
+    }
+
+    public static List<Beer> getBeers(String searchVal) throws IOException {
+        List<Beer> beers = new ArrayList<Beer>();
+
+        String request = beerRatingUrl + "/all/" + URLEncoder.encode(searchVal, "UTF-8");
         String response = "";
         try {
             response = getRequest(request);
@@ -130,16 +162,22 @@ public class ApiUtils {
         catch(SocketTimeoutException ex) {
             Log.d(LOG_TAG, "Response timed out with connection_timeout=%s" + CONNECTION_TIMEOUT_MS +
                     " and read_timeout=" + READ_TIMEOUT_MS);
+            return beers;
         }
-
-        String placeUrl = scrapePlaceUrl(response);
-        String placeResponse = getRequest(baseUrl + "/" + placeUrl);
-        List<Beer> beers = getBeerFromBeermenus(placeResponse);
-
-        getBeerAdvocateRatings(beers);
+        try {
+            JSONArray beerNamesJson = new JSONArray(response);
+            for(int i=0; i < beerNamesJson.length(); i++) {
+                beers.add(new Beer(beerNamesJson.getString(i)));
+            }
+        }
+        catch (JSONException ex) {
+            Log.d(LOG_TAG, "JSON exception: " + ex.getMessage());
+            return beers;
+        }
 
         return beers;
     }
+
 }
 
 
@@ -147,28 +185,18 @@ class SetBeerRating implements Runnable {
 
     private static String LOG_TAG = ApiUtils.class.getSimpleName();
     private Beer b;
-    private String baBaseUrl;
+    private String beerRatingUrl;
 
-    public SetBeerRating(Beer b, String baBaseUrl) {
+    public SetBeerRating(Beer b, String beerRatingUrl) {
         this.b = b;
-        this.baBaseUrl = baBaseUrl;
+        this.beerRatingUrl = beerRatingUrl;
     }
 
     @Override
     public void run() {
         try {
-            String url = baBaseUrl + "/search/?qt=beer&q=" + URLEncoder.encode(b.name, "UTF-8");
-
-            String responseHtml = ApiUtils.getRequest(url);
-            String beerUrl = ApiUtils.getFirstMatch(responseHtml, "<a href=\"(/beer/profile/.*?)\">");
-
-            String beerResponseHtml = ApiUtils.getRequest(baBaseUrl + beerUrl);
-            String s = ApiUtils.getFirstMatch(
-                    beerResponseHtml, "<span class=\"ba-ravg\">(.*?)</span>");
-            if (s.equals("-") || s.equals("")) {
-                s = "0";
-            }
-            b.ratingBeerAdvocate = Double.parseDouble(s);
+            String rating = ApiUtils.getRequest(beerRatingUrl + "/beer/" + b.name);
+            b.ratingBeerAdvocate = Double.parseDouble(rating);
             Log.d(LOG_TAG, "Beer " + b.name + " has rating " + b.ratingBeerAdvocate);
         } catch (IOException ex) {
             ex.printStackTrace();

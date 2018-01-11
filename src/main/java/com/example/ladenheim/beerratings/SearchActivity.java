@@ -58,7 +58,7 @@ public class SearchActivity extends AppCompatActivity {
                         listView.setVisibility(View.VISIBLE);
                     }
                 });
-                return beers;
+                  return beers;
 
             } catch (IOException ex) {
                 Log.d(LOG_TAG, ex.getMessage());
