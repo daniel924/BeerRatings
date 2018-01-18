@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:padding="7dip"
         android:paddingLeft="10dip"
-        android:width="228dip"
+        android:width="200dip"
         android:textSize="14dip"
         android:textStyle="bold"
         android:id="@+id/beer_name"

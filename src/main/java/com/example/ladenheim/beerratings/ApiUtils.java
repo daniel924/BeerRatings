@@ -1,7 +1,5 @@
 package com.example.ladenheim.beerratings;
 
-import android.os.AsyncTask;
-import android.text.Html;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -18,12 +16,8 @@ import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.RunnableFuture;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,7 +34,7 @@ public class ApiUtils {
 
     private static String baBaseUrl = "https://www.beeradvocate.com";
 
-    private static String beerRatingUrl = "https://beer-rating.appspot.com";
+    private static String beerRatingUrl = "http://beer-rating.appspot.com";
 
     public static String getFirstMatch(String html, String pattern) {
         Pattern p = Pattern.compile(pattern);
@@ -167,7 +161,10 @@ public class ApiUtils {
         try {
             JSONArray beerNamesJson = new JSONArray(response);
             for(int i=0; i < beerNamesJson.length(); i++) {
-                beers.add(new Beer(beerNamesJson.getString(i)));
+                JSONObject beerObj = beerNamesJson.getJSONObject(i);
+                String beerName = beerObj.getString("name");
+                Double baRating = Double.parseDouble(beerObj.getString("baRating"));
+                beers.add(new Beer(beerName, baRating));
             }
         }
         catch (JSONException ex) {
